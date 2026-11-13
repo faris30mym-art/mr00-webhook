@@ -23,7 +23,7 @@ export default function SettingsPage({ language, setLanguage, theme, setTheme, o
 
         <div className="field-row toggle-row">
           <span>{getText(language, 'settings.autoSave')}</span>
-          <input type="checkbox" defaultChecked readOnly />
+          <input type="checkbox" checked readOnly />
         </div>
 
         <button className="danger-btn" onClick={onClearData}>{getText(language, 'settings.clearData')}</button>

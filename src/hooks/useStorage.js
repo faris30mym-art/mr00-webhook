@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, useState, useEffect } from 'react';
 
-export const translations = {
+const translations = {
   en: {
     appName: 'Mr00 Webhook',
     nav: {
@@ -58,7 +58,8 @@ export const translations = {
       selectLanguage: 'Language',
       theme: 'Theme',
       docsTitle: 'Documentation',
-      aboutTitle: 'About'
+      aboutTitle: 'About',
+      noActivity: 'No activity yet.'
     },
     webhook: {
       title: 'Webhook Configuration',
@@ -67,7 +68,7 @@ export const translations = {
       test: 'Test Connection',
       validate: 'Validate Webhook',
       status: 'Connection Status',
-      secretNote: 'Webhook URLs are never stored in activity logs.'
+      secretNote: 'Webhook URLs are never exposed or stored in activity logs.'
     },
     editor: {
       title: 'Message Editor',
@@ -118,19 +119,19 @@ export const translations = {
     },
     about: {
       title: 'About Mr00 Webhook',
-      description: 'Mr00 Webhook is a premium Discord webhook automation platform built for fast, secure, and polished message delivery.',
+      description: 'Mr00 Webhook is a premium Discord webhook platform built for rapid, secure, and polished message delivery.',
       text: 'Create, customize, preview, and send normal messages and rich Discord embeds with image support, rate-limit protection, and multilingual design.'
     },
     docs: {
       title: 'How to Use Mr00 Webhook',
-      intro: 'Follow these steps to create a webhook, connect it, and send messages safely.',
+      intro: 'Follow these steps to create a Discord webhook, connect it, and send messages safely.',
       step1: 'Create a Discord webhook in your server settings.',
       step2: 'Paste the URL into the Webhook Configuration area.',
       step3: 'Write a message, embed, or markdown content.',
       step4: 'Upload images and attach them to your message or embed.',
       step5: 'Set the count and interval, then press Start Sending.'
     },
-    footer: '© 2026 Mr00 Webhook. All Rights Reserved.\nDesigned & Developed by Mr00'
+    footer: '© 2026 Mr00 Webhook. All Rights Reserved. Designed & Developed by Mr00'
   },
   ar: {
     appName: 'Mr00 Webhook',
@@ -144,7 +145,7 @@ export const translations = {
     status: {
       ready: 'جاهز',
       sending: 'جارٍ الإرسال',
-      paused: 'متوقف مؤقتًا',
+      paused: 'مؤقت',
       completed: 'مكتمل',
       error: 'خطأ',
       stopped: 'متوقف'
@@ -184,12 +185,13 @@ export const translations = {
       normalMessage: 'رسالة عادية',
       embedMessage: 'إمبيد',
       markdown: 'ماركداون',
-      finish: 'تم',
+      finish: 'مكتمل',
       lastUsed: 'آخر استخدام',
       selectLanguage: 'اللغة',
       theme: 'المظهر',
       docsTitle: 'التوثيق',
-      aboutTitle: 'حول'
+      aboutTitle: 'حول',
+      noActivity: 'لا توجد أنشطة حتى الآن.'
     },
     webhook: {
       title: 'إعدادات Webhook',
@@ -198,7 +200,7 @@ export const translations = {
       test: 'اختبار الاتصال',
       validate: 'تحقق من الرابط',
       status: 'حالة الاتصال',
-      secretNote: 'لا يتم حفظ روابط Webhook في سجلات النشاط.'
+      secretNote: 'لا يتم كشف أو تسجيل روابط Webhook في سجلات النشاط.'
     },
     editor: {
       title: 'محرر الرسالة',
@@ -218,7 +220,7 @@ export const translations = {
       timestamp: 'الطابع الزمني',
       messageCount: 'عدد الرسائل',
       interval: 'فاصل الإرسال',
-      intervalSeconds: 'ثواني',
+      intervalSeconds: 'ثانية',
       estimate: 'المدة المقررة',
       markdownTools: 'أدوات التنسيق',
       bold: 'غامق',
@@ -249,8 +251,8 @@ export const translations = {
     },
     about: {
       title: 'حول Mr00 Webhook',
-      description: 'Mr00 Webhook هي منص�� احترافية لإرسال رسائل Discord عبر Webhook بسرعة وأمان وتصميم أنيق.',
-      text: 'قم بإنشاء وتخصيص ومعاينة وإرسال الرسائل العادية والإمبيدات الغنية مع دعم الصور وحماية حدود المعدل والتصميم متعدد اللغات.'
+      description: 'Mr00 Webhook منصة احترافية لإرسال رسائل Discord عبر Webhook بسرعة وأمان وتصميم أنيق.',
+      text: 'أنشئ وقم بتخصيص ومعاينة وإرسال الرسائل العادية والإمبيدات الغنية مع دعم الصور وحماية حدود المعدل وتصميم متعدد اللغات.'
     },
     docs: {
       title: 'كيفية استخدام Mr00 Webhook',
@@ -258,10 +260,10 @@ export const translations = {
       step1: 'أنشئ Webhook داخل خادم Discord من إعدادات الخادم.',
       step2: 'الصق الرابط في قسم إعدادات Webhook.',
       step3: 'اكتب رسالة أو إمبيد أو تنسيق ماركداون.',
-      step4: 'ارفع الصور وأرفقها بالرسالة أو الإمبيد.',
-      step5: 'حدد عدد الرسائل والفاصل ثم اضغط على بدء الإرسال.'
+      step4: 'ارفع الصور وأرفقها في الرسالة أو الإمبيد.',
+      step5: 'حدد عدد الرسائل والفاصل ثم اضغط على زر بدء الإرسال.'
     },
-    footer: '© 2026 Mr00 Webhook. جميع الحقوق محفوظة.\nمصمم ومطور بواسطة Mr00'
+    footer: '© 2026 Mr00 Webhook. جميع الحقوق محفوظة. مصمم ومطور بواسطة Mr00'
   }
 };
 
@@ -269,31 +271,48 @@ const LanguageContext = createContext(null);
 
 export function LanguageProvider({ children }) {
   const [language, setLanguage] = useState(() => {
-    const saved = localStorage.getItem('mr00-webhook-language');
-    return saved || 'en';
+    if (typeof window === 'undefined') return 'en';
+    try {
+      return localStorage.getItem('mr00-webhook-language') || 'en';
+    } catch {
+      return 'en';
+    }
   });
 
   useEffect(() => {
-    localStorage.setItem('mr00-webhook-language', language);
     document.documentElement.lang = language;
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+    try {
+      localStorage.setItem('mr00-webhook-language', language);
+    } catch {
+      // ignore
+    }
   }, [language]);
 
-  const value = useMemo(() => ({ language, setLanguage, t: (key) => key }), [language]);
+  const value = useMemo(() => ({ language, setLanguage }), [language]);
 
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 
 export function useLanguage() {
-  return useContext(LanguageContext);
+  const context = useContext(LanguageContext);
+  if (!context) {
+    throw new Error('useLanguage must be used inside LanguageProvider');
+  }
+  return context;
 }
 
 export function getText(language, path) {
   const keys = path.split('.');
   let current = translations[language] || translations.en;
+
   for (const key of keys) {
-    current = current?.[key];
-    if (!current) return path;
+    if (current && typeof current === 'object' && key in current) {
+      current = current[key];
+    } else {
+      return path;
+    }
   }
-  return current;
+
+  return typeof current === 'string' ? current : path;
 }

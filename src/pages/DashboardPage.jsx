@@ -1,74 +1,23 @@
-import { NavLink } from 'react-router-dom';
-import { getText, useLanguage } from '../i18n';
+import { getText } from '../i18n';
 
-const navItems = [
-  { to: '/', label: 'nav.dashboard' },
-  { to: '/activity', label: 'nav.activity' },
-  { to: '/settings', label: 'nav.settings' },
-  { to: '/about', label: 'nav.about' },
-  { to: '/docs', label: 'nav.docs' }
-];
-
-export default function Layout({ children, language, setLanguage, theme, setTheme }) {
-  const { t } = useLanguage();
+export default function DocsPage({ language }) {
+  const items = [
+    getText(language, 'docs.step1'),
+    getText(language, 'docs.step2'),
+    getText(language, 'docs.step3'),
+    getText(language, 'docs.step4'),
+    getText(language, 'docs.step5')
+  ];
 
   return (
-    <div className={`app-shell ${theme} ${language}`}>
-      <header className="topbar glass-panel">
-        <div className="brand-wrap">
-          <div className="brand-mark">M</div>
-          <div>
-            <div className="brand-title">{getText(language, 'appName')}</div>
-            <div className="brand-sub">SaaS Webhook Console</div>
-          </div>
-        </div>
-
-        <nav className="main-nav">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-            >
-              {getText(language, item.label)}
-            </NavLink>
-          ))}
-        </nav>
-
-        <div className="header-actions">
-          <select
-            className="minimal-select"
-            value={language}
-            onChange={(event) => setLanguage(event.target.value)}
-          >
-            <option value="en">English</option>
-            <option value="ar">العربية</option>
-          </select>
-
-          <select
-            className="minimal-select"
-            value={theme}
-            onChange={(event) => setTheme(event.target.value)}
-          >
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
-          </select>
-        </div>
-      </header>
-
-      <main className="page-shell">{children}</main>
-
-      <nav className="mobile-nav glass-panel">
-        {navItems.map((item) => (
-          <NavLink key={item.to} to={item.to} className="mobile-link">
-            {getText(language, item.label)}
-          </NavLink>
+    <div className="page-card glass-panel">
+      <h2>{getText(language, 'docs.title')}</h2>
+      <p>{getText(language, 'docs.intro')}</p>
+      <ol className="doc-list">
+        {items.map((item, index) => (
+          <li key={index}>{item}</li>
         ))}
-      </nav>
-
-      <footer className="footer glass-panel">
-        <span>{getText(language, 'footer').replace('\n', ' ')}</span>
-      </footer>
+      </ol>
     </div>
   );
 }
