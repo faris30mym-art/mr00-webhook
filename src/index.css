@@ -1,0 +1,361 @@
+import { useEffect, useRef, useState } from 'react';
+import { Route, Routes } from 'react-router-dom';
+import Layout from './components/Layout';
+import { LanguageProvider, useLanguage, getText } from './i18n';
+import { useLocalStorage } from './hooks/useStorage';
+import DashboardPage from './pages/DashboardPage';
+import ActivityPage from './pages/ActivityPage';
+import SettingsPage from './pages/SettingsPage';
+import AboutPage from './pages/AboutPage';
+import DocsPage from './pages/DocsPage';
+
+const defaultSettings = {
+  webhookUrl: '',
+  messageDraft: 'Welcome to Mr00 Webhook! 🚀',
+  messageCount: 5,
+  interval: 2,
+  theme: 'dark',
+  language: 'en',
+  messageType: 'normal',
+  embed: {
+    title: 'Mr00 Webhook Preview',
+    description: 'Custom Discord embeds with premium styling and rich media.',
+    color: '#5865F2',
+    url: '',
+    authorName: 'Mr00',
+    authorUrl: '',
+    authorIcon: '',
+    thumbnail: '',
+    image: '',
+    footerText: 'Mr00 Webhook',
+    footerIcon: '',
+    timestamp: ''
+  },
+  uploadedFiles: []
+};
+
+const defaultStats = {
+  total: 0,
+  success: 0,
+  failed: 0,
+  remaining: 0
+};
+
+function AppContent() {
+  const { language, setLanguage, t } = useLanguage();
+  const [theme, setTheme] = useState(() => localStorage.getItem('mr00-webhook-theme') || 'dark');
+  const [settings, setSettings] = useLocalStorage('mr00-webhook-settings', defaultSettings);
+  const [logs, setLogs] = useLocalStorage('mr00-webhook-logs', []);
+  const [stats, setStats] = useState(defaultStats);
+  const [status, setStatus] = useState('ready');
+  const [progress, setProgress] = useState({ current: 0, total: settings.messageCount || 1 });
+  const [webhookVisible, setWebhookVisible] = useState(false);
+  const [saveState, setSaveState] = useState('Saved');
+  const [messageType, setMessageType] = useState(settings.messageType || 'normal');
+  const pauseRef = useRef(false);
+  const stopRef = useRef(false);
+
+  useEffect(() => {
+    document.body.classList.toggle('light-theme', theme === 'light');
+    localStorage.setItem('mr00-webhook-theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    setSettings((current) => ({ ...current, language, theme, messageType }));
+  }, [language, theme, messageType]);
+
+  useEffect(() => {
+    setStats({
+      total: settings.messageCount || 0,
+      success: 0,
+      failed: 0,
+      remaining: settings.messageCount || 0
+    });
+    setProgress({ current: 0, total: settings.messageCount || 1 });
+  }, [settings.messageCount]);
+
+  const pushLog = (entry) => {
+    setLogs((current) => [{ ...entry, createdAt: new Date().toLocaleString() }, ...current].slice(0, 150));
+  };
+
+  const setDraftValue = (field, value) => {
+    setSettings((current) => ({ ...current, [field]: value }));
+    setSaveState('Saved');
+  };
+
+  const setEmbedValue = (field, value) => {
+    setSettings((current) => ({
+      ...current,
+      embed: { ...current.embed, [field]: value }
+    }));
+    setSaveState('Saved');
+  };
+
+  const handleUploadFiles = (event) => {
+    const files = Array.from(event.target.files || []);
+    const allowed = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+
+    const mapped = files
+      .filter((file) => allowed.includes(file.type) && file.size <= 8 * 1024 * 1024)
+      .map((file) => ({
+        id: `${file.name}-${Date.now()}-${Math.random()}`,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        preview: URL.createObjectURL(file)
+      }));
+
+    setSettings((current) => ({
+      ...current,
+      uploadedFiles: [...(current.uploadedFiles || []), ...mapped]
+    }));
+  };
+
+  const removeUpload = (id) => {
+    setSettings((current) => ({
+      ...current,
+      uploadedFiles: (current.uploadedFiles || []).filter((file) => file.id !== id)
+    }));
+  };
+
+  const clearSavedData = () => {
+    localStorage.removeItem('mr00-webhook-settings');
+    localStorage.removeItem('mr00-webhook-logs');
+    localStorage.removeItem('mr00-webhook-language');
+    localStorage.removeItem('mr00-webhook-theme');
+    setSettings(defaultSettings);
+    setLogs([]);
+    setLanguage('en');
+    setTheme('dark');
+  };
+
+  const copyWebhookUrl = async () => {
+    if (!settings.webhookUrl) return;
+    await navigator.clipboard.writeText(settings.webhookUrl);
+    pushLog({ type: 'Webhook', status: 'success', message: 'Webhook URL copied.' });
+  };
+
+  const testWebhook = async () => {
+    if (!settings.webhookUrl) {
+      pushLog({ type: 'Webhook', status: 'error', message: 'Webhook URL is empty.' });
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/webhook/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ webhookUrl: settings.webhookUrl })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        pushLog({ type: 'Webhook', status: 'error', message: data.error || 'Unable to validate.' });
+        return;
+      }
+
+      pushLog({ type: 'Webhook', status: 'success', message: data.message || 'Connection successful.' });
+    } catch (error) {
+      pushLog({ type: 'Webhook', status: 'error', message: error.message || 'Connection failed.' });
+    }
+  };
+
+  const buildPayload = () => {
+    const embed = { ...settings.embed };
+    const mainImage = (settings.uploadedFiles || [])[0];
+    if (settings.messageType === 'embed') {
+      if (mainImage) embed.image = mainImage.preview;
+    }
+
+    return {
+      webhookUrl: settings.webhookUrl,
+      content: settings.messageDraft,
+      embeds: settings.messageType === 'embed' ? [embed] : [],
+      files: (settings.uploadedFiles || []).map((file) => ({
+        name: file.name,
+        mime: file.type,
+        data: file.data || ''
+      }))
+    };
+  };
+
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const handleStart = async () => {
+    if (!settings.webhookUrl) {
+      pushLog({ type: 'Send', status: 'error', message: 'Webhook URL is required.' });
+      setStatus('error');
+      return;
+    }
+
+    pauseRef.current = false;
+    stopRef.current = false;
+    setStatus('sending');
+    setStats({ total: settings.messageCount, success: 0, failed: 0, remaining: settings.messageCount });
+    setProgress({ current: 0, total: settings.messageCount || 1 });
+
+    let failedConsecutive = 0;
+
+    for (let index = 0; index < Number(settings.messageCount); index += 1) {
+      if (stopRef.current) {
+        setStatus('stopped');
+        break;
+      }
+
+      while (pauseRef.current) {
+        setStatus('paused');
+        await sleep(200);
+        if (stopRef.current) break;
+      }
+
+      const payload = buildPayload();
+
+      try {
+        const response = await fetch('/api/webhook/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          if (data.code === 'rate_limited') {
+            pushLog({ type: 'Send', status: 'error', message: `Rate limited for ${Math.round((data.retryAfter || 1000) / 1000)} seconds.` });
+            await sleep(data.retryAfter || 1000);
+            index -= 1;
+            continue;
+          }
+
+          failedConsecutive += 1;
+          pushLog({ type: 'Send', status: 'error', message: data.error || 'Delivery failed.' });
+          if (failedConsecutive >= 3) {
+            setStatus('error');
+            break;
+          }
+          continue;
+        }
+
+        failedConsecutive = 0;
+        setStats((current) => ({
+          total: settings.messageCount,
+          success: current.success + 1,
+          failed: current.failed,
+          remaining: Math.max(0, settings.messageCount - (current.success + 1))
+        }));
+        setProgress({ current: index + 1, total: settings.messageCount });
+        pushLog({ type: 'Send', status: 'success', message: `Message #${index + 1} sent successfully.` });
+        await sleep((Number(settings.interval) || 1) * 1000);
+      } catch (error) {
+        failedConsecutive += 1;
+        pushLog({ type: 'Send', status: 'error', message: error.message || 'Unexpected error.' });
+        if (failedConsecutive >= 3) {
+          setStatus('error');
+          break;
+        }
+      }
+    }
+
+    if (!stopRef.current && status !== 'error' && status !== 'paused') {
+      setStatus('completed');
+    }
+    setStats((current) => ({ ...current, remaining: Math.max(0, settings.messageCount - current.success - current.failed) }));
+  };
+
+  const handlePause = () => {
+    pauseRef.current = true;
+    setStatus('paused');
+  };
+
+  const handleResume = () => {
+    pauseRef.current = false;
+    setStatus('sending');
+  };
+
+  const handleStop = () => {
+    stopRef.current = true;
+    pauseRef.current = false;
+    setStatus('stopped');
+  };
+
+  const clearLogs = () => {
+    setLogs([]);
+  };
+
+  const handleSave = () => {
+    setSaveState('Saved');
+    pushLog({ type: 'Settings', status: 'success', message: 'Settings saved locally.' });
+  };
+
+  return (
+    <Layout
+      language={language}
+      setLanguage={setLanguage}
+      theme={theme}
+      setTheme={setTheme}
+    >
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <DashboardPage
+              language={language}
+              stats={stats}
+              status={status}
+              progress={progress}
+              settings={settings}
+              logs={logs}
+              onStart={handleStart}
+              onPause={handlePause}
+              onResume={handleResume}
+              onStop={handleStop}
+              onClear={clearLogs}
+              onWebhookTest={testWebhook}
+              onWebhookUrlChange={(value) => setSettings((prev) => ({ ...prev, webhookUrl: value }))}
+              onShowHideUrl={() => setWebhookVisible((value) => !value)}
+              webhookVisible={webhookVisible}
+              onCopyWebhook={copyWebhookUrl}
+              setDraftValue={setDraftValue}
+              setEmbedValue={setEmbedValue}
+              messageDraft={settings.messageDraft}
+              embed={settings.embed}
+              uploadedFiles={settings.uploadedFiles || []}
+              onUploadFiles={handleUploadFiles}
+              onRemoveUpload={removeUpload}
+              onToggleMessageType={(type) => setMessageType(type)}
+              messageType={messageType}
+              onSave={handleSave}
+              saveState={saveState}
+            />
+          }
+        />
+        <Route
+          path="/activity"
+          element={<ActivityPage language={language} logs={logs} onClear={clearLogs} />}
+        />
+        <Route
+          path="/settings"
+          element={
+            <SettingsPage
+              language={language}
+              setLanguage={setLanguage}
+              theme={theme}
+              setTheme={setTheme}
+              onClearData={clearSavedData}
+            />
+          }
+        />
+        <Route path="/about" element={<AboutPage language={language} />} />
+        <Route path="/docs" element={<DocsPage language={language} />} />
+      </Routes>
+    </Layout>
+  );
+}
+
+export default function App() {
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
+  );
+}
